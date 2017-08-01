@@ -1,0 +1,26 @@
+{
+  "name": "la-musique-artist",
+  "version": "1.0.0",
+  "description": "",
+  "main": "artist.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/illusion1993/la-musique-artist.git"
+  },
+  "author": "Vikram Singh Rathore <rathore.vikram624@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/illusion1993/la-musique-artist/issues"
+  },
+  "homepage": "https://github.com/illusion1993/la-musique-artist#readme",
+  "dependencies": {
+    "body-parser": "^1.17.2",
+    "cors": "^2.8.4",
+    "express": "^4.15.3",
+    "mongoose": "^4.11.5",
+    "searchico": "^1.2.0"
+  }
+}
