@@ -1,36 +1,15 @@
 var artistModel = require('./models');
-var searchico = require('searchico');
-
-var search_box, built = false;
+var utils = require('./utils');
 
 module.exports.build_search_index = function (req, res) {
-    artistModel.get_all_artists(function (err, artists) {
-        if (err)
-            console.log(err);
-        else {
-            if (!built) {
-                artists = JSON.parse(JSON.stringify(artists));
-                search_box = searchico(artists, { deep: true, keys: ['name', 'realname', 'members'] });
-                console.log('\n**Built Artist Search Index**');
-            }
-            res.send('Building Artist Search Index');
-            built = true;
-        }
-    });
+    artistModel.build_search_index(req.query.batch_size);
+    res.send('Building Artist Search Index');
 };
 
 module.exports.artists_list = function (req, res) {
-    artistModel.get_all_artists(function (err, artists) {
-        if (err)
-            console.log(err);
-        else
-            res.json(artists);
-    });
+    artistModel.artists_list(utils.give_response(res), utils.get_page_number(req), utils.get_limit(req));
 };
 
 module.exports.search = function (req, res) {
-    if (req.query && req.query.keyword && req.query.keyword.trim()) {
-        res.json(search_box.find(req.query.keyword));
-    }
-    else res.json([]);
+    artistModel.search(utils.give_response(res), req.query.keyword, utils.get_page_number(req), utils.get_limit(req));
 };

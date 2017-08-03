@@ -1,4 +1,6 @@
 var mongoose = require('mongoose');
+var mongoosePaginate = require('mongoose-paginate');
+var searchico = require('./searchico');
 
 function getMongoURI(databaseName) {
     var mongoUser = encodeURIComponent(process.env.MONGO_USER);
@@ -9,18 +11,70 @@ function getMongoURI(databaseName) {
 
 var dbConnection = mongoose.createConnection(getMongoURI('discogs'));
 
-// Schema for 'artists' collection in 'discogs' db
 var artistSchema = mongoose.Schema({
 	name: { type: String },
+	realname: { type: String },
 });
+artistSchema.plugin(mongoosePaginate);
 
-// Model for 'artists' collection in 'discogs' db
-artistModel = dbConnection.model('artists', artistSchema);
-
+var artistModel = dbConnection.model('artists', artistSchema);
 module.exports = artistModel;
 
-module.exports.get_all_artists = function (callback) {
-    artistModel.find(function (err, artists) {
-        callback(err, artists);
+
+// Returns pagination object for given page number and pagination size
+function get_artists_list (callback, page_number, pagination_size) {
+    artistModel.paginate({}, { page: page_number, limit: pagination_size }, function(err, artists) {
+        callback(artists);
     });
+}
+module.exports.artists_list = get_artists_list;
+
+
+var search_box, built = false, pages_inserted = 0, total_pages = 1, batch_size = 50;
+// Brings next page of objects, then inserts them into search
+function insert_next_page () {
+    if (pages_inserted === total_pages) {
+        console.log('\n**Built Artist Search Index**');
+        built = true;
+        return;
+    }
+
+    get_artists_list(function (artists_page) {
+        var artists = JSON.parse(JSON.stringify(artists_page.docs));
+        search_box.add(artists);
+        pages_inserted++;
+        total_pages = parseInt(artists_page.pages);
+        artists_page = undefined;
+
+        console.log('Inserted ' + batch_size + ' more rows');
+
+        insert_next_page();
+    }, pages_inserted + 1, batch_size);
+}
+
+module.exports.build_search_index = function (requested_batch_size) {
+    if (built) return;
+    search_box = searchico({ 
+    	deep: false, 
+    	keys: ['realname'],
+    	index_key: '_id' 
+    });
+    if (requested_batch_size && parseInt(requested_batch_size) > 0) 
+        batch_size = parseInt(requested_batch_size);
+    insert_next_page();
+};
+ 
+function get_artists_from_ids (callback, ids, page_number, pagination_size) {
+    artistModel.paginate({ _id: { $in: ids } }, { page: page_number, limit: pagination_size}, function(err, s) {
+        if (err) console.log(err);
+        callback(s);
+    });
+}
+
+module.exports.search = function (callback, keyword, page_number, pagination_size) {
+    var result_ids;
+    if (keyword && keyword.length && keyword.trim().length) {
+        result_ids = search_box.find(keyword);
+    }
+    get_artists_from_ids(callback, result_ids, page_number, pagination_size);
 };
