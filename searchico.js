@@ -37,12 +37,15 @@ Node.prototype.collect = function (hyperCaching) {
     return results;
 };
 
-Node.prototype.search = function (keyword, index, hyperCaching) {
+Node.prototype.search = function (keyword, index, hyperCaching, terminal) {
+    if (!terminal && index == keyword.length)
+        return this.data;
+
     if (index == keyword.length)
         return this.collect(hyperCaching);
 
     if (this.children[keyword[index]])
-        return this.children[keyword[index]].search(keyword, index + 1, hyperCaching);
+        return this.children[keyword[index]].search(keyword, index + 1, hyperCaching, terminal);
 
     return [];
 };
@@ -58,8 +61,8 @@ Trie.prototype.insert = function (word, data) {
         this.root.insert(word, data, 0, this.hyperCaching);
 };
 
-Trie.prototype.search = function (keyword) {
-    return (keyword && keyword.length) ? this.root.search(keyword, 0, this.hyperCaching) : [];
+Trie.prototype.search = function (keyword, terminal) {
+    return (keyword && keyword.length) ? this.root.search(keyword, 0, this.hyperCaching, terminal) : [];
 };
 
 function isArray (obj) {
@@ -186,37 +189,36 @@ Searchico.prototype.add = function (haystack) {
         for (var row in new_sanitized_data) {
             for (var column in new_sanitized_data[row]) {
                 var str = new_sanitized_data[row][column];
-                for (var position = 0; position < str.length; position++)
-                    this.trie.insert(str.substring(position), parseInt(row) + parseInt(this.data_list.length));
+                str = str.split(' ');
+                for (var i in str)
+                    if (str[i] && str[i].length)
+                        this.trie.insert(str[i], parseInt(row) + parseInt(this.data_list.length));
             }
         }
     }
     else this.sanitized_data_list = this.sanitized_data_list.concat(new_sanitized_data);
 
-    this.data_list = (this.config.index_key.length) ? this.data_list.concat(pluck(haystack, this.config.index_key, 0)) : this.data_list.concat(haystack);
+    this.data_list = (this.config.index_key && this.config.index_key.length) ? this.data_list.concat(pluck(haystack, this.config.index_key, 0)) : this.data_list.concat(haystack);
 }
 
-Searchico.prototype.find = function (keyword) {
-    keyword = sanitize(keyword, this.config);
-    var results = [];
+Searchico.prototype.find = function (keywords) {
+    keywords = sanitize(keywords, this.config).split(' ');
 
-    if (this.config.hyper_indexing) {
-        var resultIndices = this.trie.search(keyword);
-        for (var i in resultIndices)
-            results.push(this.data_list[i]);
-    }
-    else {
-        var len = this.sanitized_data_list.length;
-        for (var index = 0; index < len; ++index) {
-            var found = false, obj = this.sanitized_data_list[index];
-            obj.every(function(str) {
-                found = (str.indexOf(keyword) != -1);
-                return !found;
-            });
-            if (found)
-                results.push(this.data_list[index]);
+    var result_counts = {}, max_count = 0;
+    for (var i in keywords) {
+        if (keywords[i] && keywords[i].length) {
+            max_count++;
+            var new_results = this.trie.search(keywords[i], (i == keywords.length - 1));
+            for (var result_index in new_results) {
+                if (result_counts[result_index]) result_counts[result_index]++;
+                else result_counts[result_index] = 1;
+            };
         }
     }
+    var results = [];
+    for (var result_index in result_counts)
+        if (result_counts[result_index] == max_count)
+            results.push(this.data_list[result_index]);
     return results;
 };
 
