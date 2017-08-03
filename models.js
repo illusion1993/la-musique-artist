@@ -30,7 +30,7 @@ function get_artists_list (callback, page_number, pagination_size) {
 module.exports.artists_list = get_artists_list;
 
 
-var search_box, built = false, pages_inserted = 0, total_pages = 1, batch_size = 50;
+var search_box, built = false, pages_inserted = 0, total_pages = 1, batch_size = 50, total_rows = 0;
 // Brings next page of objects, then inserts them into search
 function insert_next_page () {
     if (pages_inserted === total_pages) {
@@ -39,24 +39,25 @@ function insert_next_page () {
         return;
     }
 
-    get_artists_list(function (artists_page) {
+    artistModel.paginate({}, { select: 'name realname', page: pages_inserted + 1, limit: batch_size }, function(err, artists_page) {
         var artists = JSON.parse(JSON.stringify(artists_page.docs));
         search_box.add(artists);
         pages_inserted++;
         total_pages = parseInt(artists_page.pages);
         artists_page = undefined;
+        total_rows += batch_size;
 
-        console.log('Inserted ' + batch_size + ' more rows');
+        console.log('Inserted ' + batch_size + ' more rows, total inserted: ' + total_rows);
 
         insert_next_page();
-    }, pages_inserted + 1, batch_size);
+    });
 }
 
 module.exports.build_search_index = function (requested_batch_size) {
     if (built) return;
     search_box = searchico({ 
     	deep: false, 
-    	keys: ['realname'],
+    	keys: ['name', 'realname'],
     	index_key: '_id' 
     });
     if (requested_batch_size && parseInt(requested_batch_size) > 0) 
